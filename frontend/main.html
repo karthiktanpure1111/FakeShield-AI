@@ -1,0 +1,506 @@
+<!doctype html>
+<html lang="en" class="h-full">
+ <head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AI Content Detector</title>
+  <script src="https://cdn.tailwindcss.com/3.4.17"></script>
+  <script src="https://cdn.jsdelivr.net/npm/lucide@0.263.0/dist/umd/lucide.min.js"></script>
+
+  <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&amp;family=Outfit:wght@300;400;500;600;700;800&amp;display=swap" rel="stylesheet">
+  <style>
+    html, body { height: 100%; margin: 0; }
+
+    @keyframes gridPulse {
+      0%, 100% { opacity: 0.03; }
+      50% { opacity: 0.08; }
+    }
+    @keyframes scanLine {
+      0% { top: -2px; }
+      100% { top: 100%; }
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes progressFill {
+      from { width: 0%; }
+    }
+    @keyframes resultReveal {
+      from { opacity: 0; transform: scale(0.95); }
+      to { opacity: 1; transform: scale(1); }
+    }
+    @keyframes pulseGlow {
+      0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.15); }
+      50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.3); }
+    }
+    @keyframes shimmer {
+      0% { background-position: -200% 0; }
+      100% { background-position: 200% 0; }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-6px); }
+    }
+
+    .grid-bg {
+      background-image:
+        linear-gradient(rgba(0,255,136,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,136,0.05) 1px, transparent 1px);
+      background-size: 40px 40px;
+      animation: gridPulse 4s ease-in-out infinite;
+    }
+
+    .scan-line::after {
+      content: '';
+      position: absolute;
+      left: 0; right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, transparent, rgba(0,255,136,0.4), transparent);
+      animation: scanLine 3s linear infinite;
+    }
+
+    .drop-zone {
+      border: 2px dashed rgba(0,255,136,0.3);
+      transition: all 0.3s ease;
+    }
+    .drop-zone:hover, .drop-zone.drag-over {
+      border-color: rgba(0,255,136,0.7);
+      background: rgba(0,255,136,0.05);
+    }
+
+    .shimmer-btn {
+      background: linear-gradient(110deg, #00ff88 0%, #00cc6a 45%, #00ff88 55%, #00cc6a 100%);
+      background-size: 200% 100%;
+      animation: shimmer 3s linear infinite;
+    }
+
+    .fade-up { animation: fadeSlideUp 0.6s ease forwards; }
+    .fade-up-d1 { animation: fadeSlideUp 0.6s ease 0.1s forwards; opacity: 0; }
+    .fade-up-d2 { animation: fadeSlideUp 0.6s ease 0.2s forwards; opacity: 0; }
+    .fade-up-d3 { animation: fadeSlideUp 0.6s ease 0.3s forwards; opacity: 0; }
+    .fade-up-d4 { animation: fadeSlideUp 0.6s ease 0.4s forwards; opacity: 0; }
+
+    .result-card { animation: resultReveal 0.5s ease forwards; }
+    .glow-card { animation: pulseGlow 2.5s ease-in-out infinite; }
+    .float-icon { animation: float 3s ease-in-out infinite; }
+
+    .progress-bar-fill { animation: progressFill 1.5s ease forwards; }
+
+    .feature-card {
+      transition: transform 0.3s ease, box-shadow 0.3s ease;
+    }
+    .feature-card:hover {
+      transform: translateY(-4px);
+    }
+
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(0,255,136,0.2);
+      border-top-color: #00ff88;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    .thumbnail-preview {
+      max-width: 100%;
+      max-height: 180px;
+      object-fit: contain;
+      border-radius: 8px;
+    }
+
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #0a0f1a; }
+    ::-webkit-scrollbar-thumb { background: #00ff88; border-radius: 3px; }
+  </style>
+  <style>body { box-sizing: border-box; }</style>
+  </head>
+ <body class="h-full">
+  <div id="app-wrapper" class="h-full w-full overflow-auto" style="background: #070b14; font-family: 'Outfit', sans-serif;"><!-- Grid background -->
+   <div class="grid-bg fixed inset-0 pointer-events-none" style="z-index:0;"></div><!-- Nav -->
+   <header class="relative z-10 px-6 py-4 flex items-center justify-between" style="background: rgba(7,11,20,0.85); backdrop-filter: blur(12px); border-bottom: 1px solid rgba(0,255,136,0.1);">
+    <div class="flex items-center gap-3">
+     <div class="w-9 h-9 rounded-lg flex items-center justify-center" style="background: linear-gradient(135deg, #00ff88, #00aa55);"><i data-lucide="shield-check" style="width:20px;height:20px;color:#070b14;"></i>
+     </div><span id="nav-title" class="text-lg font-bold tracking-tight" style="color:#e8f5ee; font-family:'Space Mono',monospace;">DeepSight AI</span>
+    </div>
+    <nav class="hidden md:flex items-center gap-6 text-sm" style="color: rgba(232,245,238,0.5);"><a href="#upload" class="hover:text-green-400 transition-colors cursor-pointer">Analyze</a> <a href="#features" class="hover:text-green-400 transition-colors cursor-pointer">Features</a> <a href="#how" class="hover:text-green-400 transition-colors cursor-pointer">How It Works</a>
+    </nav>
+   </header><!-- Hero -->
+   <section class="relative z-10 text-center px-6 pt-16 pb-10 fade-up">
+    <div class="inline-flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-medium mb-6" style="background: rgba(0,255,136,0.1); color: #00ff88; border: 1px solid rgba(0,255,136,0.2);"><i data-lucide="zap" style="width:12px;height:12px;"></i> <span>AI-Powered Detection Engine</span>
+    </div>
+    <h1 id="hero-title" class="text-4xl md:text-6xl font-extrabold leading-tight mb-5" style="color:#e8f5ee;">Detect <span style="color:#00ff88;">AI-Generated</span><br>
+     Content Instantly</h1>
+    <p id="hero-tagline" class="max-w-xl mx-auto text-base md:text-lg mb-8" style="color: rgba(232,245,238,0.55);">Upload any image or video and our advanced detection algorithms will determine whether it was created by AI or captured in the real world.</p>
+    <div class="flex justify-center gap-3"><a href="#upload" class="shimmer-btn px-6 py-3 rounded-xl font-semibold text-sm flex items-center gap-2" style="color:#070b14;"> <i data-lucide="scan" style="width:16px;height:16px;"></i> Start Analyzing </a>
+    </div>
+   </section><!-- Stats -->
+   <section class="relative z-10 max-w-3xl mx-auto px-6 pb-12">
+    <div class="grid grid-cols-3 gap-4">
+     <div class="text-center p-4 rounded-xl fade-up-d1" style="background: rgba(0,255,136,0.04); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="text-2xl font-bold" style="color:#00ff88; font-family:'Space Mono',monospace;">
+       97.8%
+      </div>
+      <div class="text-xs mt-1" style="color: rgba(232,245,238,0.45);">
+       Accuracy Rate
+      </div>
+     </div>
+     <div class="text-center p-4 rounded-xl fade-up-d2" style="background: rgba(0,255,136,0.04); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="text-2xl font-bold" style="color:#00ff88; font-family:'Space Mono',monospace;">
+       2.1M+
+      </div>
+      <div class="text-xs mt-1" style="color: rgba(232,245,238,0.45);">
+       Files Analyzed
+      </div>
+     </div>
+     <div class="text-center p-4 rounded-xl fade-up-d3" style="background: rgba(0,255,136,0.04); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="text-2xl font-bold" style="color:#00ff88; font-family:'Space Mono',monospace;">
+       &lt;2s
+      </div>
+      <div class="text-xs mt-1" style="color: rgba(232,245,238,0.45);">
+       Avg. Scan Time
+      </div>
+     </div>
+    </div>
+   </section><!-- Upload Section -->
+   <section id="upload" class="relative z-10 max-w-2xl mx-auto px-6 pb-16 fade-up-d2">
+    <h2 id="upload-heading" class="text-2xl font-bold mb-6 text-center" style="color:#e8f5ee;">Upload &amp; Analyze</h2>
+    <div id="drop-zone" class="drop-zone scan-line relative rounded-2xl p-10 text-center cursor-pointer overflow-hidden" style="background: rgba(10,18,32,0.8);">
+     <div id="upload-prompt" class="relative z-10">
+      <div class="float-icon inline-flex items-center justify-center w-16 h-16 rounded-2xl mb-4" style="background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.15);"><i data-lucide="upload-cloud" style="width:28px;height:28px;color:#00ff88;"></i>
+      </div>
+      <p class="text-base font-medium mb-1" style="color:#e8f5ee;">Drop your file here or click to browse</p>
+      <p class="text-sm" style="color: rgba(232,245,238,0.4);">Supports JPG, PNG, GIF, WEBP, MP4, WEBM • Max 50MB</p>
+     </div>
+     <div id="file-preview" class="relative z-10 hidden">
+      <div id="preview-container" class="flex flex-col items-center gap-3"></div>
+     </div><input type="file" id="file-input" class="hidden" accept="image/*,video/*">
+    </div><!-- Analyze Button -->
+    <div class="mt-5 text-center"><button id="analyze-btn" disabled class="shimmer-btn px-8 py-3.5 rounded-xl font-semibold text-sm inline-flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed transition-opacity" style="color:#070b14;"> <i data-lucide="scan" style="width:16px;height:16px;"></i> <span id="analyze-btn-text">Analyze Content</span> </button>
+    </div><!-- Loading State -->
+    <div id="loading-state" class="hidden mt-8 text-center">
+     <div class="spinner mx-auto mb-4"></div>
+     <p class="text-sm font-medium" style="color:#00ff88; font-family:'Space Mono',monospace;">Scanning content...</p>
+     <p class="text-xs mt-1" style="color: rgba(232,245,238,0.4);">Running multi-layer detection algorithms</p>
+    </div><!-- Results -->
+    <div id="results-panel" class="hidden mt-8"></div>
+   </section><!-- Features -->
+   <section id="features" class="relative z-10 max-w-4xl mx-auto px-6 pb-16">
+    <h2 class="text-2xl font-bold mb-8 text-center fade-up" style="color:#e8f5ee;">Detection Capabilities</h2>
+    <div class="grid md:grid-cols-3 gap-4">
+     <div class="feature-card p-5 rounded-xl fade-up-d1" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background: rgba(0,255,136,0.1);"><i data-lucide="image" style="width:18px;height:18px;color:#00ff88;"></i>
+      </div>
+      <h3 class="font-semibold mb-1.5" style="color:#e8f5ee;">Image Analysis</h3>
+      <p class="text-sm leading-relaxed" style="color: rgba(232,245,238,0.45);">Detect AI-generated images from DALL·E, Midjourney, Stable Diffusion, and more through artifact analysis.</p>
+     </div>
+     <div class="feature-card p-5 rounded-xl fade-up-d2" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background: rgba(0,255,136,0.1);"><i data-lucide="video" style="width:18px;height:18px;color:#00ff88;"></i>
+      </div>
+      <h3 class="font-semibold mb-1.5" style="color:#e8f5ee;">Video Detection</h3>
+      <p class="text-sm leading-relaxed" style="color: rgba(232,245,238,0.45);">Frame-by-frame analysis to spot deepfakes, AI-generated clips, and synthetic video content.</p>
+     </div>
+     <div class="feature-card p-5 rounded-xl fade-up-d3" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-10 h-10 rounded-lg flex items-center justify-center mb-3" style="background: rgba(0,255,136,0.1);"><i data-lucide="file-text" style="width:18px;height:18px;color:#00ff88;"></i>
+      </div>
+      <h3 class="font-semibold mb-1.5" style="color:#e8f5ee;">Detailed Reports</h3>
+      <p class="text-sm leading-relaxed" style="color: rgba(232,245,238,0.45);">Get comprehensive breakdowns with confidence scores, artifact maps, and metadata forensics.</p>
+     </div>
+    </div>
+   </section><!-- How It Works -->
+   <section id="how" class="relative z-10 max-w-3xl mx-auto px-6 pb-16">
+    <h2 class="text-2xl font-bold mb-8 text-center fade-up" style="color:#e8f5ee;">How It Works</h2>
+    <div class="space-y-4">
+     <div class="flex items-start gap-4 p-5 rounded-xl fade-up-d1" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm" style="background: rgba(0,255,136,0.15); color:#00ff88; font-family:'Space Mono',monospace;">
+       01
+      </div>
+      <div>
+       <h3 class="font-semibold mb-1" style="color:#e8f5ee;">Upload Content</h3>
+       <p class="text-sm" style="color: rgba(232,245,238,0.45);">Drag &amp; drop or browse for any image or video file you want to verify.</p>
+      </div>
+     </div>
+     <div class="flex items-start gap-4 p-5 rounded-xl fade-up-d2" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm" style="background: rgba(0,255,136,0.15); color:#00ff88; font-family:'Space Mono',monospace;">
+       02
+      </div>
+      <div>
+       <h3 class="font-semibold mb-1" style="color:#e8f5ee;">AI Scans &amp; Analyzes</h3>
+       <p class="text-sm" style="color: rgba(232,245,238,0.45);">Our neural network examines pixel patterns, compression artifacts, and metadata signatures.</p>
+      </div>
+     </div>
+     <div class="flex items-start gap-4 p-5 rounded-xl fade-up-d3" style="background: rgba(10,18,32,0.6); border: 1px solid rgba(0,255,136,0.08);">
+      <div class="w-9 h-9 rounded-lg flex-shrink-0 flex items-center justify-center font-bold text-sm" style="background: rgba(0,255,136,0.15); color:#00ff88; font-family:'Space Mono',monospace;">
+       03
+      </div>
+      <div>
+       <h3 class="font-semibold mb-1" style="color:#e8f5ee;">Get Your Verdict</h3>
+       <p class="text-sm" style="color: rgba(232,245,238,0.45);">Receive a detailed authenticity report with confidence percentage and detection breakdown.</p>
+      </div>
+     </div>
+    </div>
+   </section><!-- Demo Disclaimer -->
+   <section class="relative z-10 max-w-2xl mx-auto px-6 pb-8">
+    <div class="p-4 rounded-xl text-center" style="background: rgba(255,180,0,0.06); border: 1px solid rgba(255,180,0,0.15);">
+     <p class="text-xs" style="color: rgba(255,200,60,0.7);"><i data-lucide="info" style="width:12px;height:12px;display:inline;vertical-align:middle;margin-right:4px;"></i> <strong>Demo Mode</strong> — This is a frontend prototype. Results shown are simulated for demonstration purposes and do not reflect actual AI detection analysis.</p>
+    </div>
+   </section><!-- Footer -->
+   <footer class="relative z-10 px-6 py-6 text-center" style="border-top: 1px solid rgba(0,255,136,0.06);">
+    <p class="text-xs" style="color: rgba(232,245,238,0.25);">© 2025 DeepSight AI — AI Content Detection Platform</p>
+   </footer>
+  </div>
+  <script>
+    // ========== DEFAULT CONFIG ==========
+    const defaultConfig = {
+      site_title: 'DeepSight AI',
+      tagline: 'Upload any image or video and our advanced detection algorithms will determine whether it was created by AI or captured in the real world.',
+      upload_heading: 'Upload & Analyze',
+      cta_button_text: 'Analyze Content',
+      background_color: '#070b14',
+      accent_color: '#00ff88',
+      text_color: '#e8f5ee',
+      surface_color: '#0a1220',
+      muted_text_color: '#5a7a6a',
+      font_family: 'Outfit',
+      font_size: 16
+    };
+
+    // ========== ELEMENT SDK ==========
+ 
+
+    // ========== FILE UPLOAD LOGIC ==========
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const analyzeBtn = document.getElementById('analyze-btn');
+    const uploadPrompt = document.getElementById('upload-prompt');
+    const filePreview = document.getElementById('file-preview');
+    const previewContainer = document.getElementById('preview-container');
+    const loadingState = document.getElementById('loading-state');
+    const resultsPanel = document.getElementById('results-panel');
+
+    let selectedFile = null;
+
+    dropZone.addEventListener('click', () => fileInput.click());
+    dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', () => dropZone.classList.remove('drag-over'));
+    dropZone.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dropZone.classList.remove('drag-over');
+      if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', (e) => {
+      if (e.target.files.length) handleFile(e.target.files[0]);
+    });
+
+    function handleFile(file) {
+      const validTypes = ['image/jpeg','image/png','image/gif','image/webp','video/mp4','video/webm'];
+      if (!validTypes.includes(file.type)) {
+        showInlineError('Unsupported file type. Please use JPG, PNG, GIF, WEBP, MP4, or WEBM.');
+        return;
+      }
+      if (file.size > 50 * 1024 * 1024) {
+        showInlineError('File too large. Maximum size is 50MB.');
+        return;
+      }
+
+      selectedFile = file;
+      resultsPanel.classList.add('hidden');
+      resultsPanel.innerHTML = '';
+      uploadPrompt.classList.add('hidden');
+      filePreview.classList.remove('hidden');
+
+      const isVideo = file.type.startsWith('video');
+      const iconType = isVideo ? 'video' : 'image';
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+
+      previewContainer.innerHTML = `
+        <div class="w-14 h-14 rounded-xl flex items-center justify-center" style="background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.15);">
+          <i data-lucide="${iconType}" style="width:24px;height:24px;color:#00ff88;"></i>
+        </div>
+        <p class="font-medium text-sm" style="color:#e8f5ee;">${file.name}</p>
+        <p class="text-xs" style="color: rgba(232,245,238,0.4);">${file.type} • ${sizeMB} MB</p>
+        <button id="clear-file" class="text-xs px-3 py-1 rounded-lg" style="color:#ff6b6b; background: rgba(255,107,107,0.1); border: 1px solid rgba(255,107,107,0.2);">Remove</button>
+      `;
+      lucide.createIcons();
+
+      document.getElementById('clear-file').addEventListener('click', (e) => {
+        e.stopPropagation();
+        resetUpload();
+      });
+
+      // Generate thumbnail for images
+      if (!isVideo) {
+        const reader = new FileReader();
+        reader.onload = (ev) => {
+          const img = document.createElement('img');
+          img.src = ev.target.result;
+          img.alt = 'Preview';
+          img.className = 'thumbnail-preview mt-2';
+          img.style.border = '1px solid rgba(0,255,136,0.15)';
+          previewContainer.insertBefore(img, previewContainer.children[1]);
+        };
+        reader.readAsDataURL(file);
+      }
+
+      analyzeBtn.disabled = false;
+    }
+
+    function resetUpload() {
+      selectedFile = null;
+      fileInput.value = '';
+      uploadPrompt.classList.remove('hidden');
+      filePreview.classList.add('hidden');
+      previewContainer.innerHTML = '';
+      analyzeBtn.disabled = true;
+      resultsPanel.classList.add('hidden');
+      resultsPanel.innerHTML = '';
+    }
+
+    function showInlineError(msg) {
+      resultsPanel.classList.remove('hidden');
+      resultsPanel.innerHTML = `
+        <div class="p-4 rounded-xl text-center" style="background: rgba(255,107,107,0.08); border: 1px solid rgba(255,107,107,0.2);">
+          <p class="text-sm" style="color:#ff6b6b;"><i data-lucide="alert-triangle" style="width:14px;height:14px;display:inline;vertical-align:middle;margin-right:6px;"></i>${msg}</p>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    // ========== ANALYZE ==========
+   analyzeBtn.addEventListener('click', async () => {
+  if (!selectedFile) return;
+
+  analyzeBtn.disabled = true;
+  loadingState.classList.remove('hidden');
+  resultsPanel.classList.add('hidden');
+  resultsPanel.innerHTML = '';
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const response = await fetch("http://127.0.0.1:5000/predict", {
+      method: "POST",
+      body: formData
+    });
+
+  const data = await response.json();
+
+if (!data.prediction) {
+  throw new Error("Invalid response from backend");
+}
+    loadingState.classList.add('hidden');
+    analyzeBtn.disabled = false;
+
+    showRealResult(data.prediction);
+
+  } catch (error) {
+    loadingState.classList.add('hidden');
+    analyzeBtn.disabled = false;
+   showInlineError("Backend not running or connection failed");  }
+});
+
+    function showResults() {
+      // Simulated random results
+      const isAI = Math.random() > 0.45;
+      const confidence = isAI ? (72 + Math.random() * 26).toFixed(1) : (65 + Math.random() * 30).toFixed(1);
+      const verdict = isAI ? 'AI-Generated' : 'Likely Authentic';
+      const verdictColor = isAI ? '#ff6b6b' : '#00ff88';
+      const verdictIcon = isAI ? 'alert-triangle' : 'check-circle';
+      const isVideo = selectedFile && selectedFile.type.startsWith('video');
+
+      const markers = isAI ? [
+        { name: 'Texture Consistency', score: (70 + Math.random() * 28).toFixed(0), flag: true },
+        { name: 'Edge Artifacts', score: (55 + Math.random() * 40).toFixed(0), flag: Math.random() > 0.3 },
+        { name: isVideo ? 'Temporal Coherence' : 'Noise Pattern', score: (40 + Math.random() * 50).toFixed(0), flag: Math.random() > 0.4 },
+        { name: 'Metadata Integrity', score: (30 + Math.random() * 60).toFixed(0), flag: Math.random() > 0.5 },
+        { name: isVideo ? 'Face Consistency' : 'Color Distribution', score: (50 + Math.random() * 45).toFixed(0), flag: Math.random() > 0.35 }
+      ] : [
+        { name: 'Texture Consistency', score: (20 + Math.random() * 35).toFixed(0), flag: false },
+        { name: 'Edge Artifacts', score: (10 + Math.random() * 30).toFixed(0), flag: false },
+        { name: isVideo ? 'Temporal Coherence' : 'Noise Pattern', score: (15 + Math.random() * 35).toFixed(0), flag: Math.random() > 0.7 },
+        { name: 'Metadata Integrity', score: (5 + Math.random() * 25).toFixed(0), flag: false },
+        { name: isVideo ? 'Face Consistency' : 'Color Distribution', score: (10 + Math.random() * 30).toFixed(0), flag: false }
+      ];
+
+      const markersHTML = markers.map(m => {
+        const barColor = m.flag ? '#ff6b6b' : '#00ff88';
+        return `
+          <div class="flex items-center gap-3 py-2">
+            <div class="flex-1">
+              <div class="flex justify-between mb-1">
+                <span class="text-xs font-medium" style="color: rgba(232,245,238,0.7);">${m.name}</span>
+                <span class="text-xs font-mono" style="color: ${m.flag ? '#ff6b6b' : 'rgba(232,245,238,0.4)'};">${m.score}%${m.flag ? ' ⚠' : ''}</span>
+              </div>
+              <div class="w-full h-1.5 rounded-full" style="background: rgba(255,255,255,0.06);">
+                <div class="h-1.5 rounded-full progress-bar-fill" style="width: ${m.score}%; background: ${barColor};"></div>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('');
+
+      resultsPanel.classList.remove('hidden');
+      resultsPanel.innerHTML = `
+        <div class="result-card glow-card rounded-2xl p-6" style="background: rgba(10,18,32,0.8); border: 1px solid rgba(0,255,136,0.12);">
+          <div class="flex items-center justify-between mb-5">
+            <h3 class="text-lg font-bold" style="color:#e8f5ee;">Analysis Result</h3>
+            <span class="text-xs px-2 py-1 rounded-md font-mono" style="background: rgba(0,255,136,0.08); color: rgba(232,245,238,0.5);">DEMO</span>
+          </div>
+          <div class="text-center mb-6">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3" style="background: ${isAI ? 'rgba(255,107,107,0.1)' : 'rgba(0,255,136,0.1)'}; border: 2px solid ${verdictColor};">
+              <i data-lucide="${verdictIcon}" style="width:28px;height:28px;color:${verdictColor};"></i>
+            </div>
+            <div class="text-2xl font-bold mb-1" style="color:${verdictColor}; font-family:'Space Mono',monospace;">${verdict}</div>
+            <div class="text-sm" style="color: rgba(232,245,238,0.5);">Confidence: <span class="font-mono font-bold" style="color:${verdictColor};">${confidence}%</span></div>
+          </div>
+          <div class="mb-4 px-1">
+            <h4 class="text-xs font-semibold uppercase tracking-wider mb-3" style="color: rgba(232,245,238,0.35);">Detection Breakdown</h4>
+            ${markersHTML}
+          </div>
+          <div class="pt-4 text-center" style="border-top: 1px solid rgba(0,255,136,0.08);">
+            <button onclick="resetUpload(); window.scrollTo({top: document.getElementById('upload').offsetTop - 80, behavior:'smooth'});" class="text-sm font-medium px-5 py-2 rounded-lg" style="color:#00ff88; background: rgba(0,255,136,0.08); border: 1px solid rgba(0,255,136,0.15);">
+              <i data-lucide="refresh-cw" style="width:13px;height:13px;display:inline;vertical-align:middle;margin-right:5px;"></i>Analyze Another
+            </button>
+          </div>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+    function showRealResult(prediction) {
+  const isAI = prediction === "Fake";
+  const verdict = isAI ? 'AI-Generated' : 'Likely Authentic';
+  const verdictColor = isAI ? '#ff6b6b' : '#00ff88';
+  const verdictIcon = isAI ? 'alert-triangle' : 'check-circle';
+
+  resultsPanel.classList.remove('hidden');
+  resultsPanel.innerHTML = `
+    <div class="result-card glow-card rounded-2xl p-6" style="background: rgba(10,18,32,0.8); border: 1px solid rgba(0,255,136,0.12);">
+      <div class="flex items-center justify-between mb-5">
+        <h3 class="text-lg font-bold" style="color:#e8f5ee;">Analysis Result</h3>
+      </div>
+
+      <div class="text-center mb-6">
+        <div class="inline-flex items-center justify-center w-16 h-16 rounded-full mb-3"
+          style="background: ${isAI ? 'rgba(255,107,107,0.1)' : 'rgba(0,255,136,0.1)'}; border: 2px solid ${verdictColor};">
+          <i data-lucide="${verdictIcon}" style="width:28px;height:28px;color:${verdictColor};"></i>
+        </div>
+
+        <div class="text-2xl font-bold mb-1"
+          style="color:${verdictColor}; font-family:'Space Mono',monospace;">
+          ${verdict}
+        </div>
+      </div>
+    </div>
+  `;
+
+  lucide.createIcons();
+}
+
+    // Init icons
+    lucide.createIcons();
+  </script>
+</html>
