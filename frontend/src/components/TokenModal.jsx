@@ -11,7 +11,7 @@ const TokenModal = ({ onClose, onSuccess }) => {
 
   const handleBuy = async (amount) => {
     try {
-      const resp = await axios.post('http://127.0.0.1:5000/api/buy', { tokens: amount }, {
+      const resp = await axios.post('https://fakeshield-ai-0jvr.onrender.com/api/buy', { tokens: amount }, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       onSuccess(resp.data.new_tokens);

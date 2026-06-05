@@ -22,7 +22,7 @@ export default function Dashboard() {
   useEffect(() => {
     const fetchUser = async () => {
       try {
-        const resp = await axios.get('http://127.0.0.1:5000/api/me', {
+        const resp = await axios.get('https://fakeshield-ai-0jvr.onrender.com/api/me', {
           headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
         });
         setUser(resp.data);
@@ -74,7 +74,7 @@ export default function Dashboard() {
     form.append('file', file);
     
     try {
-      const resp = await axios.post('http://127.0.0.1:5000/predict', form, {
+      const resp = await axios.post('https://fakeshield-ai-0jvr.onrender.com/predict', form, {
         headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
       });
       setResult(resp.data);
