@@ -1,0 +1,9 @@
+flask
+flask-cors
+tensorflow
+pillow
+numpy
+gunicorn
+flask-sqlalchemy
+psycopg2-binary
+

@@ -1,1 +1,24 @@
+# Python
+.venv/
+__pycache__/
+*.pyc
+instance/
+
+# Model (too large for git)
 backend/model.h5
+
+# Database
+backend/users.db
+
+# Node
+node_modules/
+frontend/node_modules/
+frontend/dist/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

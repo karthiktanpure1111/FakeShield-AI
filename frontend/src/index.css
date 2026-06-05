@@ -1,0 +1,82 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer utilities {
+  .grid-bg {
+    background-image:
+      linear-gradient(rgba(0,255,136,0.05) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,255,136,0.05) 1px, transparent 1px);
+    background-size: 40px 40px;
+    animation: gridPulse 4s ease-in-out infinite;
+  }
+
+  .scan-line::after {
+    content: '';
+    position: absolute;
+    left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, rgba(0,255,136,0.4), transparent);
+    animation: scanLine 3s linear infinite;
+  }
+
+  .shimmer-btn {
+    background: linear-gradient(110deg, #00ff88 0%, #00cc6a 45%, #00ff88 55%, #00cc6a 100%);
+    background-size: 200% 100%;
+    animation: shimmer 3s linear infinite;
+  }
+
+  .progress-bar-fill { animation: progressFill 1.5s ease forwards; }
+}
+
+@keyframes gridPulse {
+  0%, 100% { opacity: 0.03; }
+  50% { opacity: 0.08; }
+}
+@keyframes scanLine {
+  0% { top: -2px; }
+  100% { top: 100%; }
+}
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+@keyframes fadeSlideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes resultReveal {
+  from { opacity: 0; transform: scale(0.95); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes pulseGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(0, 255, 136, 0.15); }
+  50% { box-shadow: 0 0 40px rgba(0, 255, 136, 0.3); }
+}
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+@keyframes progressFill {
+  from { width: 0%; }
+}
+
+.fade-up { animation: fadeSlideUp 0.6s ease forwards; }
+.fade-up-d1 { animation: fadeSlideUp 0.6s ease 0.1s forwards; opacity: 0; }
+.fade-up-d2 { animation: fadeSlideUp 0.6s ease 0.2s forwards; opacity: 0; }
+.fade-up-d3 { animation: fadeSlideUp 0.6s ease 0.3s forwards; opacity: 0; }
+
+.result-card { animation: resultReveal 0.5s ease forwards; }
+.glow-card { animation: pulseGlow 2.5s ease-in-out infinite; }
+.float-icon { animation: float 3s ease-in-out infinite; }
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #0a0f1a; }
+::-webkit-scrollbar-thumb { background: #00ff88; border-radius: 3px; }
+
+html, body {
+  height: 100%;
+  background: #070b14;
+  color: #e8f5ee;
+  margin: 0;
+}
